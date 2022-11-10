@@ -1,0 +1,2 @@
+count lines in nginx log: wc -l < /var/log/nginx/access.log
+
