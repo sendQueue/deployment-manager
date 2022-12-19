@@ -17,7 +17,7 @@ module.exports = function (app) {
     })
 
 
-    app.get(["/dash", "/deploy", "/pm", "/update"], async (req, res) => {
+    app.get(["/", "/dash", "/deploy", "/pm", "/update"], async (req, res) => {
         let user = req.session.user, loc = req.originalUrl.replace("/", "");
 
         if(!user || user.uuid.length < 4){
@@ -35,8 +35,8 @@ module.exports = function (app) {
             loc = "dash";
         }
         
-        console.log(user, Date.now(), loc)
-        //res.sendFile(path.join(__dirname, "../../../frontend/", loc, ".html"));
+        // console.log(user, Date.now(), loc)
+        res.sendFile(path.join(__dirname, "../../../frontend/dash.html"));
     })
 
 

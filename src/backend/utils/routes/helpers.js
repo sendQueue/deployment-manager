@@ -8,7 +8,6 @@ module.exports = function (app) {
         setState(res, hashPassword(req.params.toHash));
     })
 
-
     app.get("/encryptText/:text/" + process.env.SESSION_KEY, async (req, res) => {
         setState(res, encryptText(req.params.text));
     })

@@ -70,7 +70,7 @@ module.exports = {
 
 
     insertLogin(req, uuid){
-        db.exec("INSERT INTO `logins` (`id`, `uuid`, `time`, `ip`) VALUES (NULL, ?, ?, ?);", [uuid, Date.now(), genIP(req)]);
+        //db.exec("INSERT INTO `logins` (`id`, `uuid`, `time`, `ip`) VALUES (NULL, ?, ?, ?);", [uuid, Date.now(), genIP(req)]);
     },
 
 

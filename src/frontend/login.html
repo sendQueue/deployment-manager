@@ -4,7 +4,7 @@
 <head>
     <link rel="shortcut icon" type="image/x-icon" href="../assets/img/favicon.ico" />
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
     <link rel="stylesheet" href="../assets/css/main.css">
     <script src="../assets/js/vue.min.js" defer></script>
     <script src="../assets/js/login.js" defer></script>
@@ -21,22 +21,20 @@
             </div>
         </div>
 
-        <div class="card card--inverted draggable-area" id="main" style="width: 380px;">
+        <div class="card card--inverted draggable-area" id="main" style="width: 320px;">
             <h2>Deployment Manager</h2>
             <h4>Log in to continue...</h4>
-            <label class="input">
+            <div class="input">
                 <input class="input__field" id="username" v-model="username" type="text" placeholder="admin1337" value=""
                     autocomplete="off" />
                 <span class="input__label">Username</span>
-                <div class="tooltip">uuid works as well</div>
-            </label>
+            </div>
             <br>
-            <label class="input">
+            <div class="input">
                 <input class="input__field" id="password" v-model="password" type="password" placeholder="1234" value=""
                     autocomplete="off" />
                 <span class="input__label">Password</span>
-                <div class="tooltip">reset not possible</div>
-            </label>
+            </div>
             <div class="check">
               <input type="checkbox" name="save" id="save" v-model="save" style="width: 20px; height: 20px;">
               <label for="save" onclick="">Save credentials for 7 days<div class="tooltip2">otherwise session is terminated once browser is closed ("non-persistent cookie")</div></label>
@@ -47,7 +45,6 @@
                 <button class="black" v-on:click="login">Log in</button>
                 <button type="reset" v-on:click="help">Where am I?</button>
                 <button type="notification" v-if="message.length > 0">{{message}}</button>
-
             </div>
         </div>
     </div>

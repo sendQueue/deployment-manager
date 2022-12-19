@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="shortcut icon" type="image/x-icon" href="../assets/img/favicon.ico" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <link rel="stylesheet" href="../assets/css/main.css?rel=skajdfgSZHJLAdf">
+    <script src="../assets/js/vue.min.js" defer></script>
+    <script src="../assets/js/dash.js" defer></script>
+    <title>Dashboard - Deployment Manager</title>
+</head>
+
+<body>
+    <div id="app">
+        <div id="loader-wrapper">
+            <div id="loader"></div>
+
+            <div class="loader-section">
+                <h4 id="loading-msg"></h4>
+            </div>
+        </div>
+
+        <div class="card card--inverted draggable-area" id="main" style="width: 320px;">
+            <div style="width: 100%; height: 40px; margin-top: -20px;">
+                <h2 v-if="overview == 0" style="float: left;">Deployment Manager</h2>
+                <button v-if="overview != 0" type="reset" @click="goBack()"
+                    style="float: left; margin-top: 3px;"> &larr; Go Back</button>
+            </div>
+
+            <h4><u>{{ title }}</u></h4>
+
+            <div v-if="overview == 0" style="height: 100%; width: 100%;">
+
+                <div class="acc" @click="overview = 1; title='Click a repository to deploy'; addHistory()">
+                    <h2 style="margin-top: 5px; color: currentColor; font-weight: 400;">Deploy new project</h2>
+                </div>
+                <div class="acc" @click="overview = 2; title='Process and log monitor'; addHistory()">
+                    <h2 style="margin-top: 5px; color: currentColor; font-weight: 400;">Process-Monitor</h2>
+                </div>
+                <div class="acc" @click="overview = 3; title='Configure or delete existing project'; addHistory()">
+                    <h2 style="margin-top: 5px; color: currentColor; font-weight: 400;">Configure project</h2>
+                </div>
+
+            </div>
+
+            <div v-if="overview == 1">
+
+                <div v-if="deployment == 0" class="repos">
+                    <div class="input">
+                        <input class="input__field" id="search" v-model="search" type="search" autocomplete="off" />
+                        <span class="input__label">Search</span>
+                    </div>
+                    <br>
+                    <div class="repos-scroll">
+                        <div v-for="repo in repos" class="repo"
+                            v-if="repo.name.toLowerCase().startsWith(search.toLowerCase()) || repo.owner.login.toLowerCase().includes(search.toLowerCase())" @click="deployConfig(repo)">
+                            <div style="width: 100%; height: 60%;">
+                                <img :src="repo.owner.avatar_url" alt=""
+                                    style="width: 43px; height: 43px; float: left; border-radius: 5px;">
+                                <span
+                                    style="font-size: 18px; font-weight: 500; float: left; margin-left: 10px; margin-top: 8px;">
+                                    {{ repo.name.substring(0, 18) + (repo.name.length > 18 ? ".." : "") }}</span>
+                                <span style="font-size: 14px; float: right; margin-right: 10px; margin-top: 5px;">
+                                    {{ new Date().getTime() - new Date(repo.pushed_at).getTime() < 86400000 ? new
+                                        Date(repo.pushed_at).toLocaleTimeString() : new
+                                        Date(repo.pushed_at).toLocaleDateString() }}</span>
+                            </div>
+                            <div style="width: 100%; height: 40%; text-align: center;">
+                                <span
+                                    style="font-size: 14px; float: right; margin-right: 10px; margin-top: -5px; color: #fab700;">{{
+                                    repo.visibility }}</span>
+                                <!-- <span style="font-size: 14px; float: right; margin-right: 5px; margin-top: -5px;">{{ repo.owner.login }}:</span> -->
+                            </div>
+                        </div>
+                        <div v-if="repos.length == 0">
+                            <h4>fetching repos...</h4>
+                            <h4>or user has none</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="deployment == 1">
+
+                    <div v-if="selectedRepo.id == undefined">
+                        <h4>could not select repo..</h4>
+                        <h4>reload page an try again</h4>
+                    </div>
+
+                    <div v-if="selectedRepo.id != undefined">
+
+                        <div class="website-info">
+                            <img :src="selectedRepo.owner.avatar_url" alt="" srcset=""
+                            style="height: 34px; width: 34px; float: left; margin-top: 5px; margin-right: 10px; border-radius: 5px;">
+                            <span @click="openTab(selectedRepo.html_url)" style="cursor: pointer;">{{ selectedRepo.name }}</span>
+                            <br>
+                            <span style="color: #bec4c0; font-size: 14px;">Last modified: {{ new Date().getTime() - new Date(selectedRepo.pushed_at).getTime() < 86400000 ? new
+                                Date(selectedRepo.pushed_at).toLocaleTimeString() : new
+                                Date(selectedRepo.pushed_at).toLocaleDateString() }}</span>
+                        </div>
+    
+                        <div class="input">
+                            <input class="input__field" id="startScript" :class="{ invalidfield: !startScript.startsWith('./'), validfield: startScript.startsWith('./') }" v-model="startScript" type="text" autocomplete="off" placeholder="./src/backend/server.js" />
+                            <span class="input__label">Start script</span>
+                        </div>
+                        <br>
+                        <div style="width: 100%; margin-top: 2px; height: 50px;">
+                            <div class="input" style="width: 75%; float: left;">
+                                <input class="input__field" id="startArgs" v-model="startArgs" type="text" autocomplete="off" placeholder="--no-warnings" />
+                                <span class="input__label">Start arguments</span>
+                            </div>
+                            <div class="input" style="width: 21%; float: right; margin-top: 0px;">
+                                <input class="input__field" id="maxMemory" v-model="maxMemory" type="number" min="128" max="1024" autocomplete="off" placeholder="256" />
+                                <span class="input__label">Memory</span>
+                            </div>
+                        </div>
+                        <div style="width: 100%; height: 10px;">
+
+                        </div>
+                        <span style="color: #bec4c0; font-size: 15px;">ENVIRONMENT VARIABLES <span style="font-weight: 200; cursor: pointer;" @click="importEnvs()">(or <u>import</u>)</span></span>
+                        <div style="width: 100%; margin-top: 10px;">
+                            <div class="input" style="width: 40%;  float: left;">
+                                <input class="input__field" style="height: 40px;" id="envKey" v-model="envKey" type="text" autocomplete="off" />
+                                <span class="input__label">Name</span>
+                            </div>
+                            <div class="input" style="width: 40%; float: left; margin-left: 5px; margin-top: 0px;">
+                                <input class="input__field" style="height: 40px;" id="envValue" v-model="envValue" type="text" autocomplete="off" />
+                                <span class="input__label">Value</span>
+                            </div>
+                            <div @click="addEnv()" style="float: right; width: 40px; height: 30px; border-radius: 5px; background-color: #fab700; text-align: center; margin-top: 4px; margin-right: 2px; cursor: pointer;">
+                                <p style="margin-top: 5px;  color: black; font-weight: 600; font-size: 15px;">ADD</p>
+                            </div>
+                            <br>
+                            <div style="width: 100%; max-height: 180px; overflow-y: scroll; margin-top: 25px;">
+                                <div v-for="(env, index) in envs" class="sensitiveInfo" style="margin-top: 5px; white-space: nowrap; overflow-y: hidden;" >
+                                    <span style="float: left; color: #fab700;">{{ env[0] }}: &NonBreakingSpace;<span style="color: #bec4c0;">'{{ env[1] }}'</span></span>
+                                    <div @click="removeEnv(env)" style="float: right; width: 30px; height: 20px; border-radius: 1px; background-color: rgb(250, 110, 110); text-align: center; margin-top: 0px; margin-right: 2px; cursor: pointer;">
+                                        <p style="margin-top: 2px; color: black; font-weight: 300; font-size: 12px; user-select: none;">X</p>
+                                    </div>
+                                    <br>
+                                </div>
+                            </div>
+                            <div v-if="startScript.startsWith('./')" style="margin-top: 20px;">
+                                <div class="button-group">
+                                    <button class="black" v-on:click="deploy">Deploy now</button>
+                                    <button type="notification" v-if="message.length > 0">{{message}}</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+        </div>
+    </div>
+</body>
+
+</html>
