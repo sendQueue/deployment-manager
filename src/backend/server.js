@@ -8,10 +8,11 @@ const path = require("path");
 
 const express = require("express");
 const { runStartUpChecks } = require("./utils/sql");
+const { writeEcosystem } = require("./utils/hardware/bridge");
 
 const app = express();
 
-const PORT = process.env.PORT || 49998;
+const PORT = process.env.PORT || 1347;
 
 /*
  * running start up checks and cancel startup if failed

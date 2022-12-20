@@ -1,4 +1,5 @@
 const { comparePassword, decryptText } = require("../generation/generator");
+const { writeEcosystem, cloneRepository, unzipRepository, isDeployed } = require("../hardware/bridge");
 const { getGithubRepos, getGithubRepo } = require("../network/g_helper");
 const { getUserByName, getUserByUUID } = require("../sql");
 const { setState, setSession } = require("../utils");
@@ -42,15 +43,20 @@ module.exports = function (app) {
         const user = req.session.user;
 
         if (!user || user.uuid.length < 1) {
-            setState(res, "invalid session");
+            setState(res, "invalid session, reload the page");
             return;
         }
 
-        const repo = req.body.repo, envs = req.body.envs, maxMemory = req.body.maxMemory;
+        const repo = req.body.repo, envs = req.body.envs, startScript = req.body.startScript, startArgs = req.body.startArgs, maxMemory = req.body.maxMemory;
 
         if (repo == undefined || repo.name == undefined || repo.owner.login == undefined || repo.default_branch == undefined) {
-            setState(res, "invalid repo provided");
+            setState(res, "invalid repo provided, reload the page");
             return;
+        }
+
+        if(isDeployed(repo.name)){
+            setState(res, "repo already deployed - try to repull at 'configure project' if incorrectly deployed");
+            return; 
         }
 
         if (envs != undefined) {
@@ -64,13 +70,18 @@ module.exports = function (app) {
             }
 
             if (wrongEnvs || !Array.isArray(envs)) {
-                setState(res, "invalid envs provided");
+                setState(res, "invalid envs provided, reload the page");
                 return;
             }
         }
 
-        if(maxMemory < 128 || maxMemory > 1024){
-            setState(res, "invalid max memory provided");
+        if (startScript == undefined || !startScript.startsWith("./")) {
+            setState(res, "invalid start script path provided, reload the page");
+            return;
+        }
+
+        if (maxMemory < 128 || maxMemory > 1024) {
+            setState(res, "invalid max memory provided, reload the page");
             return;
         }
 
@@ -80,7 +91,53 @@ module.exports = function (app) {
             fullRepo = fR;
         })
 
-        console.log(fullRepo)
+
+        if (fullRepo == undefined) {
+            setState(res, "invalid access to repo or repo not found, reload the page");
+            return;
+        }
+
+        let env_string = ""
+        envs.forEach(env => env_string += `${env[0]}: "${env[1]}", \n                        `)
+
+        const ecosystem =
+            `module.exports = {
+                apps: [{
+                    name: "${repo.name}",
+                    script: "${startScript}",
+                    args: "${startArgs == undefined ? "" : startArgs}",
+                    sha: "${fullRepo.object.sha}",
+                    url: "${repo.html_url}",
+                    log: "process.log", 
+                    time: true,
+                    instances: "1",
+                    exec_mode: "fork",
+                    autorestart: true,
+                    restart_delay: 50, 
+                    watch: false,
+                    max_memory_restart: "${maxMemory}M",
+                    env: {
+                        ${env_string}
+                    }
+                }]
+            };`
+
+        if(!writeEcosystem(ecosystem, repo.name)){
+            setState(res, "internal error: could not create ecosystem!");
+            return;
+        }
+        
+        if(!cloneRepository(user, repo)){
+            setState(res, "internal error: could not clone repository!");
+            return;
+        }
+
+        if(!unzipRepository(repo)){
+            setState(res, "internal error: could not unzip repository!");
+            return;
+        }
+
+        setState(res, "success");
 
     })
 

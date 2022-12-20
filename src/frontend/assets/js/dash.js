@@ -43,29 +43,29 @@ const app = new Vue({
             this.title = "Please configure deployment settings"
         },
 
-        addEnv(){
-            if(this.envKey.length > 0 && this.envValue.length > 0){
+        addEnv() {
+            if (this.envKey.length > 0 && this.envValue.length > 0) {
                 var prevent = false
-                for(var env of this.envs){
+                for (var env of this.envs) {
                     console.log(env)
-                    if(env[0] == this.envKey){
+                    if (env[0] == this.envKey) {
                         prevent = true;
                         break;
                     }
                 }
-                if(!prevent){
+                if (!prevent) {
                     this.envs.push([this.envKey, this.envValue])
                     this.envKey = this.envValue = ""
-                }else{
+                } else {
                     alert("env '" + this.envKey + "' already exists.")
                 }
             }
         },
 
-        removeEnv(envs){
+        removeEnv(envs) {
             var tempEnvs = []
-            for(var env of this.envs){
-                if(env[0] != envs[0] && env[1] != envs[1]){
+            for (var env of this.envs) {
+                if (env[0] != envs[0] && env[1] != envs[1]) {
                     tempEnvs.push(env)
                 }
             }
@@ -73,26 +73,31 @@ const app = new Vue({
             this.envs = tempEnvs;
         },
 
-        importEnvs(){
+        importEnvs() {
             const e = prompt("Please paste your environment variables (only nodemon file syntax!):")
             const parsed = JSON.parse(e.replaceAll("\n", ""))
 
-            if(parsed.env == undefined){
+            if (parsed.env == undefined) {
                 alert("Invalid format")
                 return
             }
             this.envKey = this.envValue = ""
             this.envs = []
-            for(var key in parsed.env){
+            for (var key in parsed.env) {
                 this.envs.push([key, parsed.env[key]])
             }
         },
 
-        async deploy(){
-            if(!this.startScript.startsWith("./") || this.selectedRepo.name == undefined || this.maxMemory > 1024 || this.maxMemory < 128){
+        async deploy() {
+            if (!this.startScript.startsWith("./") || this.selectedRepo.name == undefined || this.maxMemory > 1024 || this.maxMemory < 128) {
                 this.message = "specify start script and select repo"
                 return;
             }
+
+            if(!confirm("Are you sure you want to deploy '" + this.selectedRepo.name + "'?")) return;
+
+            document.body.classList.remove("loaded")
+            document.getElementById('loading-msg').innerText = "deploying..";
 
             await fetch("/api/v2/deploy", {
                 method: "POST",
@@ -101,12 +106,27 @@ const app = new Vue({
                 },
                 body: JSON.stringify({
                     repo: this.selectedRepo,
+                    startScript: this.startScript,
+                    startArgs: this.startArgs,
                     maxMemory: this.maxMemory,
                     envs: this.envs
                 })
             }).then(async response => {
                 const result = await response.json();
+                if (result.state == "success") {
+                    this.message = "success, redirecting to PM in 10 seconds..";
+                    setTimeout(() => {
+                        this.goBack();
+                        this.goBack();
+                        this.overview = 2;
+                        this.title = "Process and log monitor"
+                    }, 10000);
+                } else {
+                    this.message = result.state;
+                }
                 console.log(result)
+                document.body.classList.add("loaded")
+                document.getElementById('loading-msg').innerText = "";
             })
         },
 
@@ -119,11 +139,16 @@ const app = new Vue({
                     this.deployment = 0;
                     this.selectedRepo = {};
                     this.title = "Click a repository to deploy"
+                    this.envs = []
+                    this.startScript = ""
+                    this.startArgs = ""
+                    this.maxMemory = 256
+                    this.selectedRepo = {}
                 }
-            } else if (this.overview == 2){
+            } else if (this.overview == 2) {
                 this.overview = 0;
                 this.title = "Overview";
-            }else {
+            } else {
                 this.overview = 0;
                 this.title = "Overview";
             }
