@@ -473,6 +473,26 @@ label:hover .second {
     filter: blur(0px);
 }
 
+select, select::after, select:active, select:hover, option {
+    position: relative;
+    background: var(--color-background);
+    border: 2px solid var(--color-signal);
+    color: var(--color-light);
+    text-align: center;
+}
+
+.running {
+    background-color: rgb(0, 255, 55);
+}
+
+.not_running {
+    background-color: rgb(255, 40, 24);
+}
+
+.not_fully_deployed {
+    background-color: var(--color-signal);
+}
+
 @media only screen and (max-width: 600px) {
     :root {
         /* font-size: calc(1.1rem + .4vw); */

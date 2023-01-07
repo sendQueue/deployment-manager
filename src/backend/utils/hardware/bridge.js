@@ -63,13 +63,13 @@ module.exports = {
 
         try {
             if (fs.existsSync(deploymentPath + repo.name + `/${repo.name}-repository.zip`)) {
-    
+
                 execSync(`extract-zip ${deploymentPath}${repo.name}/${repo.name}-repository.zip ${deploymentPath}${repo.name}`).toString();
-    
+
                 var extractedPath = `${deploymentPath}${repo.name}/${repo.name}-${repo.default_branch}`;
-    
+
                 execSync(`yes | cp -rf /${extractedPath}/* ${deploymentPath}${repo.name}/`);
-    
+
                 execSync(`cd ${deploymentPath}${repo.name}/ && npm install`);
 
                 execSync(`rm -r ${deploymentPath}${repo.name}/${repo.name}-${repo.default_branch}`)
@@ -80,5 +80,22 @@ module.exports = {
         } catch (error) {
             return false;
         }
-    }
+    },
+
+
+    getDeployments() {
+        if (process.env.NODE_ENV == "development") return ["deployment-manager", "CryptChat"];
+
+        try {
+            if (fs.existsSync(deploymentPath)) {
+                return fs.readdirSync(deploymentPath)
+                    .filter(entry => fs.statSync(deploymentPath + entry).isDirectory())
+                    .filter(entry => module.exports.isDeployed(entry));
+            } else {
+                return [];
+            }
+        } catch (error) {
+            return [];
+        }
+    },
 }

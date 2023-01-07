@@ -1,5 +1,5 @@
 const { comparePassword, decryptText } = require("../generation/generator");
-const { writeEcosystem, cloneRepository, unzipRepository, isDeployed } = require("../hardware/bridge");
+const { writeEcosystem, cloneRepository, unzipRepository, isDeployed, getDeployments } = require("../hardware/bridge");
 const { getGithubRepos, getGithubRepo } = require("../network/g_helper");
 const { getUserByName, getUserByUUID } = require("../sql");
 const { setState, setSession } = require("../utils");
@@ -141,4 +141,15 @@ module.exports = function (app) {
 
     })
 
+
+    app.get("/api/v2/getDeployments", async (req, res) => {
+        const user = req.session.user;
+
+        if (!user || user.uuid.length < 1) {
+            setState(res, "invalid session, reload the page");
+            return;
+        }
+
+        res.json(getDeployments());
+    })
 }
