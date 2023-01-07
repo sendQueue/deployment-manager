@@ -5,6 +5,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 100);
 });
 
+
+window.addEventListener('popstate', () => {
+    app.goBack()
+});
+
 const app = new Vue({
     el: "#app",
     data: {
@@ -13,6 +18,7 @@ const app = new Vue({
         title: "Overview",
 
 
+        repos: [],
         deployment: 0,
         selectedRepo: {},
         startScript: "",
@@ -22,18 +28,50 @@ const app = new Vue({
         envKey: "",
         envValue: "",
 
-        repos: [],
+        selectedDeployment: "",
+        deployments: [],
+        process_state: "not_fully_deployed",
+        show_state: false,
+        memory_usage: -1,
+        cpu_usage: -1,
+        version: "59c0904",
+        repoLink: "",
+        logMode: "Process",
+
         search: "",
         message: ""
 
     },
     mounted: function () {
-        fetch("/api/v2/getGithubRepos").then(async result => {
-            const r = await result.json();
+        fetch("/api/v2/getGithubRepos").then(async response => {
+            const r = await response.json();
             if (!r["state"]) {
                 this.repos = r;
             }
         })
+
+        fetch("/api/v2/getDeployments").then(async response => {
+            const r = await response.json();
+            if (!r["state"]) {
+                this.deployments = r;
+                const deployment = localStorage.getItem("selectedDeployment");
+                if (deployment) {
+                    this.selectedDeployment = deployment
+                } else {
+                    this.selectedDeployment = r.length > 0 ? r[0] : "";
+                }
+            }
+        })
+
+        if(this.selectedDeployment.length > 0){
+            fetch("/api/v2/getDeploymentVersion/" + this.selectedDeployment).then(async response => {
+
+            })
+
+        }
+
+        history.pushState(null, null, document.URL)
+
     },
     methods: {
 
@@ -94,7 +132,7 @@ const app = new Vue({
                 return;
             }
 
-            if(!confirm("Are you sure you want to deploy '" + this.selectedRepo.name + "'?")) return;
+            if (!confirm("Are you sure you want to deploy '" + this.selectedRepo.name + "'?")) return;
 
             document.body.classList.remove("loaded")
             document.getElementById('loading-msg').innerText = "deploying..";
@@ -130,6 +168,12 @@ const app = new Vue({
             })
         },
 
+
+        async changeLogMode(){
+
+        },
+        
+
         goBack() {
             if (this.overview == 1) {
                 if (this.deployment == 0) {
@@ -159,7 +203,7 @@ const app = new Vue({
         },
 
         addHistory() {
-            window.history.pushState(undefined, window.location.href)
+            history.pushState(null, null, document.URL)
         },
 
         help() {
