@@ -24,7 +24,6 @@ const app = new Vue({
                 this.resetMessage();
                 return;
             }
-            console.log(this.username, this.password, this.save)
             this.message = "fetching..";
 
             await fetch("/api/v2/auth", {
@@ -40,7 +39,7 @@ const app = new Vue({
             }).then(async response => {
                 const result = await response.json();
                 if(result["state"] == "success"){
-                    // redirect
+                    location.reload()
                 }
                 this.message = result["state"];
                 this.resetMessage();   
@@ -48,6 +47,19 @@ const app = new Vue({
 
         },
 
+        enter(e){
+            if(e == undefined) return;
+
+            if(e.keyCode == 13){
+                this.login()
+            }
+
+            if(e.getModifierState('CapsLock')){
+                this.message = "CapsLock active!"
+                this.resetMessage(1500);
+            }
+        },
+        
         help(){
             window.open("https://github.com/sendQueue/deployment-manager", '_blank').focus();
         },

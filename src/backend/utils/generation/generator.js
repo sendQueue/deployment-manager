@@ -36,7 +36,7 @@ module.exports = {
     },
 
     
-    async genIP(req) {
+    genIP(req) {
         return req.headers['cf-connecting-ip'] ||
             req.headers['x-real-ip'] ||
             req.headers['x-forwarded-for'] ||

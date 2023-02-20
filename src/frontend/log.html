@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="shortcut icon" type="image/x-icon" href="../assets/img/favicon.ico" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <link rel="stylesheet" href="../assets/css/main.css?rel=skajdfgSZHJLAdf">
+    <script src="../assets/js/vue.min.js" defer></script>
+    <script src="../assets/js/logs.js?rel=hjASfjh" defer></script>
+    <title>Logs - Deployment Manager</title>
+    <style>
+        html,
+        body {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            top: 0;
+            left: 0;
+            float: left;
+        }
+
+        .log-field {
+            width: 100%;
+            height: 100%;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            word-wrap: break-word;
+            /* background-color: aqua; */
+            
+        }
+
+        .log-field::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        .log-field::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+
+        .log-field::-webkit-scrollbar-thumb {
+            border-radius: 10px;
+            -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.65);
+        }
+
+        .log-field::-webkit-scrollbar-corner {
+            -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+    <div style="width: 100%; height: calc(100% - 50px); overflow: hidden;" id="app">
+        <pre class="log-field" id="log-field">
+            <div v-for="l in log" style="float: left; width: 97%; margin-left: 2px; user-select: text;"><span style="font-size: 13px; color: rgba(144, 202, 249, 0.815);"> {{ l[0].length > 1 ? window.innerWidth < 1000 ? new Date(l[0]).toLocaleString().split(",")[1] : new Date(l[0]).toLocaleString() : "" }}</span><span style="font-size: 12px; color: aliceblue;">{{ l[1] }}</span></div>
+        </pre>
+
+    </div>
+</body>
+
+</html>

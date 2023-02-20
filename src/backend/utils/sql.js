@@ -40,29 +40,18 @@ module.exports = {
             }
         })
 
-        // starts table
-        await db.exec("SELECT EXISTS( SELECT * FROM information_schema.tables WHERE table_schema = ? AND table_name = ? ) AS success", [process.env.SQL_DB, "starts"]).then(async rows => {
+        // actions table
+        await db.exec("SELECT EXISTS( SELECT * FROM information_schema.tables WHERE table_schema = ? AND table_name = ? ) AS success", [process.env.SQL_DB, "actions"]).then(async rows => {
             if (rows[0]["success"] == 0) {
-                await db.exec("CREATE TABLE `starts` (`id` int NOT NULL, `uuid` varchar(4) COLLATE utf8mb4_unicode_ci NOT NULL, `deployment` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL, `time` varchar(13) COLLATE utf8mb4_unicode_ci NOT NULL,`ip` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;").then(async rows2 => {
-                    await db.exec("ALTER TABLE `starts` ADD PRIMARY KEY (`id`);");
-                    await db.exec("ALTER TABLE `starts` MODIFY `id` int NOT NULL AUTO_INCREMENT;");
+                await db.exec("CREATE TABLE `actions` (`id` int NOT NULL, `uuid` varchar(4) COLLATE utf8mb4_unicode_ci NOT NULL, `action` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL, `deployment` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL, `time` varchar(13) COLLATE utf8mb4_unicode_ci NOT NULL,`ip` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;").then(async rows2 => {
+                    await db.exec("ALTER TABLE `actions` ADD PRIMARY KEY (`id`);");
+                    await db.exec("ALTER TABLE `actions` MODIFY `id` int NOT NULL AUTO_INCREMENT;");
                     await db.exec("COMMIT;")
                     success = rows2["serverStatus"] == 2
                 })
             }
         })
 
-        // stops table
-        await db.exec("SELECT EXISTS( SELECT * FROM information_schema.tables WHERE table_schema = ? AND table_name = ? ) AS success", [process.env.SQL_DB, "stops"]).then(async rows => {
-            if (rows[0]["success"] == 0) {
-                await db.exec("CREATE TABLE `stops` (`id` int NOT NULL, `uuid` varchar(4) COLLATE utf8mb4_unicode_ci NOT NULL, `deployment` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL, `time` varchar(13) COLLATE utf8mb4_unicode_ci NOT NULL,`ip` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;").then(async rows2 => {
-                    await db.exec("ALTER TABLE `stops` ADD PRIMARY KEY (`id`);");
-                    await db.exec("ALTER TABLE `stops` MODIFY `id` int NOT NULL AUTO_INCREMENT;");
-                    await db.exec("COMMIT;")
-                    success = rows2["serverStatus"] == 2
-                })
-            }
-        })
 
 
         return success;
@@ -70,7 +59,11 @@ module.exports = {
 
 
     insertLogin(req, uuid){
-        //db.exec("INSERT INTO `logins` (`id`, `uuid`, `time`, `ip`) VALUES (NULL, ?, ?, ?);", [uuid, Date.now(), genIP(req)]);
+        db.exec("INSERT INTO logins (id, uuid, time, ip) VALUES (NULL, ?, ?, ?)", [uuid, Date.now(), genIP(req)]);
+    },
+
+    insertAction(req, uuid, action, deployment){
+        db.exec("INSERT INTO actions (id, uuid, action, deployment, time, ip) VALUES (NULL, ?, ?, ?, ?, ?)", [uuid, action, deployment, Date.now(), genIP(req)]);
     },
 
 

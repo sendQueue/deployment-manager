@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
     <link rel="stylesheet" href="../assets/css/main.css">
     <script src="../assets/js/vue.min.js" defer></script>
-    <script src="../assets/js/login.js" defer></script>
+    <script src="../assets/js/login.js?rel=shdfgshjdf" defer></script>
     <title>Log in - Deployment Manager</title>
 </head>
 
@@ -26,13 +26,13 @@
             <h4>Log in to continue...</h4>
             <div class="input">
                 <input class="input__field" id="username" v-model="username" type="text" placeholder="admin1337" value=""
-                    autocomplete="off" />
+                    autocomplete="off" @keyup="enter(event)" />
                 <span class="input__label">Username</span>
             </div>
             <br>
             <div class="input">
                 <input class="input__field" id="password" v-model="password" type="password" placeholder="1234" value=""
-                    autocomplete="off" />
+                    autocomplete="off" @keyup="enter(event)"/>
                 <span class="input__label">Password</span>
             </div>
             <div class="check">
@@ -44,6 +44,8 @@
             <div class="button-group">
                 <button class="black" v-on:click="login">Log in</button>
                 <button type="reset" v-on:click="help">Where am I?</button>
+                <br>
+                <br>
                 <button type="notification" v-if="message.length > 0">{{message}}</button>
             </div>
         </div>

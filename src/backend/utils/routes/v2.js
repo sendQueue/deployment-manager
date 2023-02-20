@@ -1,11 +1,10 @@
-const { comparePassword, decryptText } = require("../generation/generator");
-const { writeEcosystem, cloneRepository, unzipRepository, isDeployed, getDeployments } = require("../hardware/bridge");
+const { comparePassword, decryptText, encryptText } = require("../generation/generator");
+const { writeEcosystem, cloneRepository, unzipRepository, isDeployed, getDeployments, getEcosystem, getProcess, getProcessLog, processAction } = require("../hardware/bridge");
 const { getGithubRepos, getGithubRepo } = require("../network/g_helper");
-const { getUserByName, getUserByUUID } = require("../sql");
+const { getUserByName, getUserByUUID, insertAction } = require("../sql");
 const { setState, setSession } = require("../utils");
 
 module.exports = function (app) {
-
 
     app.post("/api/v2/auth", async (req, res) => {
         const user = await getUserByName(req.body.username) || await getUserByUUID(req.body.username);
@@ -42,23 +41,40 @@ module.exports = function (app) {
     app.post("/api/v2/deploy", async (req, res) => {
         const user = req.session.user;
 
-        if (!user || user.uuid.length < 1) {
+        const repo = req.body.repo, envs = req.body.envs, startScript = req.body.startScript, startArgs = req.body.startArgs, maxMemory = req.body.maxMemory, action = req.body.action;
+
+        if (repo == undefined || repo.name == undefined || repo.owner.login == undefined || repo.default_branch == undefined) {
+            setState(res, "invalid args provided, reload the page");
+            return;
+        }
+        if (!user || user.uuid.length < 1 || user.denied.includes(repo.name)) {
             setState(res, "invalid session, reload the page");
             return;
         }
 
-        const repo = req.body.repo, envs = req.body.envs, startScript = req.body.startScript, startArgs = req.body.startArgs, maxMemory = req.body.maxMemory;
 
-        if (repo == undefined || repo.name == undefined || repo.owner.login == undefined || repo.default_branch == undefined) {
-            setState(res, "invalid repo provided, reload the page");
+        if (action == undefined || !["deploy", "repull", "reconfigure"].includes(action)) {
+            setState(res, "invalid action provided, reload the page");
             return;
         }
 
-        if(isDeployed(repo.name)){
-            setState(res, "repo already deployed - try to repull at 'configure project' if incorrectly deployed");
-            return; 
+        switch (action) {
+            case "deploy":
+                if(isDeployed(repo.name)){
+                    setState(res, "repo already deployed - try to repull at 'configure project' if incorrectly deployed");
+                    return; 
+                }
+                break;
+        
+            default:
+                if(!isDeployed(repo.name)){
+                    setState(res, "repo not deployed, can not " + action);
+                    return; 
+                }
+                break;
         }
 
+        //  check if envs are valid and in correct format
         if (envs != undefined) {
             let wrongEnvs = false;
 
@@ -85,7 +101,7 @@ module.exports = function (app) {
             return;
         }
 
-        // get full repo for current sha/version
+        //  get full repo for current sha/version
         var fullRepo = undefined;
         await getGithubRepo(user, repo, fR => {
             fullRepo = fR;
@@ -117,24 +133,29 @@ module.exports = function (app) {
                     watch: false,
                     max_memory_restart: "${maxMemory}M",
                     env: {
+                        ${env_string.includes("NODE_ENV") ? "" :  'NODE_ENV: "production",'}
                         ${env_string}
-                    }
+                    },
+                    repo: ${JSON.stringify(repo)}
                 }]
-            };`
+            };`   
 
         if(!writeEcosystem(ecosystem, repo.name)){
             setState(res, "internal error: could not create ecosystem!");
             return;
         }
         
-        if(!cloneRepository(user, repo)){
-            setState(res, "internal error: could not clone repository!");
-            return;
-        }
-
-        if(!unzipRepository(repo)){
-            setState(res, "internal error: could not unzip repository!");
-            return;
+        //  only download and unzip repo if action is deploy or repull
+        if(["deploy", "repull"].includes(action)){
+            if(!cloneRepository(user, repo)){
+                setState(res, "internal error: could not clone repository!");
+                return;
+            }
+    
+            if(!unzipRepository(repo)){
+                setState(res, "internal error: could not unzip repository!");
+                return;
+            }
         }
 
         setState(res, "success");
@@ -151,5 +172,109 @@ module.exports = function (app) {
         }
 
         res.json(getDeployments());
+    })
+
+
+    app.get("/api/v2/getDeploymentVersion/:deployment", async (req, res) => {
+        const user = req.session.user;
+
+        if (!user || user.uuid.length < 1) {
+            setState(res, "invalid session, reload the page");
+            return;
+        }
+
+        const deployments = getDeployments();
+
+        if(!deployments.includes(req.params.deployment)){
+            setState(res, "invalid deployment provided");
+            return;
+        }
+        const ecosystem = getEcosystem(user, req.params.deployment);
+        if(user.denied.includes(req.params.deployment)){
+            delete ecosystem.apps[0].env
+        }
+        res.json(ecosystem)
+    })
+
+
+    app.get("/api/v2/getProcess/:deployment", async (req, res) => {
+        const user = req.session.user;
+
+        if (!user || user.uuid.length < 1) {
+            setState(res, "invalid session, reload the page");
+            return;
+        }
+
+        const deployments = getDeployments();
+
+        if(!deployments.includes(req.params.deployment)){
+            setState(res, "invalid deployment provided");
+            return;
+        }
+
+        var process = getProcess(req.params.deployment), isRunning = undefined
+
+        if (process != undefined) {
+            const keepKeys = ["pm_uptime", "axm_monitor", "status", "restart_time"]
+
+            Object.keys(process.pm2_env).forEach(env => {
+                if(!keepKeys.includes(env)) delete process.pm2_env[env];
+            })
+
+            isRunning = !process.pm2_env.status.includes('stopped')
+        }
+        res.json({ running: isRunning, process: process })
+    })
+
+
+    app.get("/api/v2/getLogs/:deployment/:type/:amount", async (req, res) => {
+        const user = req.session.user;
+
+        if (!user || user.uuid.length < 1 || user.denied.includes(req.params.deployment)) {
+            setState(res, "invalid session, reload the page");
+            return;
+        }
+
+        const deployments = getDeployments();
+
+        if(!deployments.includes(req.params.deployment)){
+            setState(res, "invalid deployment provided");
+            return;
+        }
+
+        const amount = Math.min(parseInt(req.params.amount), 1000)
+
+        res.json(getProcessLog(req.params.deployment, req.params.type, amount));
+
+    })
+
+
+    app.post("/api/v2/processAction/:action", async (req, res) => {
+        const user = req.session.user;
+
+        if (!user || user.uuid.length < 1 || user.denied.includes(req.body.deployment)) {
+            setState(res, "invalid session, reload the page");
+            return;
+        }
+
+        const process_name = req.body.deployment;
+        const deployments = getDeployments();
+        console.log(user.denied, process_name)
+        
+        if(!deployments.includes(process_name)){
+            setState(res, "invalid deployment provided");
+            return;
+        }
+        
+        const action = req.params.action;
+        if(!["restart", "stop", "delete"].includes(action)){
+            setState(res, "invalid action provided");
+            return;
+        }
+
+        processAction(process_name, action);
+        insertAction(req, user.uuid, action, process_name)
+
+        res.json({});
     })
 }

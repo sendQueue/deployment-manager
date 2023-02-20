@@ -35,8 +35,25 @@ module.exports = function (app) {
             loc = "dash";
         }
         
-        // console.log(user, Date.now(), loc)
         res.sendFile(path.join(__dirname, "../../../frontend/dash.html"));
+    })
+    
+
+    app.get("/log/:deployment", async(req, res) => {
+        let user = req.session.user;
+
+        if(!user || user.uuid.length < 4){
+            res.redirect("/login");
+            return;
+        }
+
+        if(Date.now() - user.session_age > 1000 * 60 * refreshSessionInterval){
+            user = await getUserByUUID(user.uuid);
+            setSession(req, user);
+        }
+
+        res.sendFile(path.join(__dirname, "../../../frontend/log.html"));
+
     })
 
 

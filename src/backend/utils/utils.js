@@ -32,5 +32,12 @@ module.exports = {
 
     replaceAll(str, find, replace) {
         return str.replace(new RegExp(module.exports.escapeRegExp(find), 'g'), replace);
+    },
+    
+    requireFromString(src, filename) {
+        var Module = module.constructor;
+        var m = new Module();
+        m._compile(src, filename);
+        return m.exports;
     }
 }

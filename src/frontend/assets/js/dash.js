@@ -21,6 +21,7 @@ const app = new Vue({
         repos: [],
         deployment: 0,
         selectedRepo: {},
+        tmpRepo: {},
         startScript: "",
         startArgs: "",
         maxMemory: 256,
@@ -34,46 +35,54 @@ const app = new Vue({
         show_state: false,
         memory_usage: -1,
         cpu_usage: -1,
-        version: "59c0904",
+        monitor: undefined,
+        version: "",
         repoLink: "",
-        logMode: "Process",
 
         search: "",
         message: ""
 
     },
-    mounted: function () {
-        fetch("/api/v2/getGithubRepos").then(async response => {
-            const r = await response.json();
-            if (!r["state"]) {
-                this.repos = r;
-            }
-        })
-
-        fetch("/api/v2/getDeployments").then(async response => {
-            const r = await response.json();
-            if (!r["state"]) {
-                this.deployments = r;
-                const deployment = localStorage.getItem("selectedDeployment");
-                if (deployment) {
-                    this.selectedDeployment = deployment
-                } else {
-                    this.selectedDeployment = r.length > 0 ? r[0] : "";
-                }
-            }
-        })
-
-        if(this.selectedDeployment.length > 0){
-            fetch("/api/v2/getDeploymentVersion/" + this.selectedDeployment).then(async response => {
-
-            })
-
-        }
-
-        history.pushState(null, null, document.URL)
-
+    mounted: async function () {
+        await this.mount();
     },
     methods: {
+        async mount() {
+            await fetch("/api/v2/getGithubRepos").then(async response => {
+                const r = await response.json();
+                if (!r["state"]) {
+                    this.repos = r;
+                    if (localStorage.getItem("selectedDeployment") != undefined) {
+                        for (repo of this.repos) {
+                            if (repo.name == localStorage.getItem("selectedDeployment")) {
+                                this.selectedRepo = repo;
+                            }
+                        }
+                    }
+                }
+            })
+
+            await fetch("/api/v2/getDeployments").then(async response => {
+                const r = await response.json();
+                if (!r["state"]) {
+                    this.deployments = r;
+                    const deployment = localStorage.getItem("selectedDeployment");
+                    if (deployment) {
+                        this.selectedDeployment = deployment
+                    } else {
+                        this.selectedDeployment = r.length > 0 ? r[0] : "";
+                    }
+                }
+            })
+
+            if (this.selectedDeployment.length > 0) {
+                this.getVersion();
+                this.getProcess();
+            }
+            this.cycle();
+            history.pushState(null, null, document.URL);
+
+        },
 
         deployConfig(repo) {
             this.selectedRepo = repo;
@@ -85,7 +94,6 @@ const app = new Vue({
             if (this.envKey.length > 0 && this.envValue.length > 0) {
                 var prevent = false
                 for (var env of this.envs) {
-                    console.log(env)
                     if (env[0] == this.envKey) {
                         prevent = true;
                         break;
@@ -126,13 +134,13 @@ const app = new Vue({
             }
         },
 
-        async deploy() {
+        async deploy(action) {
             if (!this.startScript.startsWith("./") || this.selectedRepo.name == undefined || this.maxMemory > 1024 || this.maxMemory < 128) {
                 this.message = "specify start script and select repo"
                 return;
             }
 
-            if (!confirm("Are you sure you want to deploy '" + this.selectedRepo.name + "'?")) return;
+            if (!confirm("Are you sure you want to " + action + " '" + this.selectedRepo.name + "'?")) return;
 
             document.body.classList.remove("loaded")
             document.getElementById('loading-msg').innerText = "deploying..";
@@ -147,34 +155,139 @@ const app = new Vue({
                     startScript: this.startScript,
                     startArgs: this.startArgs,
                     maxMemory: this.maxMemory,
-                    envs: this.envs
+                    envs: this.envs,
+                    action: action
                 })
             }).then(async response => {
                 const result = await response.json();
                 if (result.state == "success") {
-                    this.message = "success, redirecting to PM in 10 seconds..";
-                    setTimeout(() => {
+                    this.message = "success, redirecting to PM in 5 seconds..";
+                    setTimeout(async () => {
+                        await this.mount();
+                        this.goBack();
                         this.goBack();
                         this.goBack();
                         this.overview = 2;
-                        this.title = "Process and log monitor"
-                    }, 10000);
+                        this.title = "Process and log monitor";
+                        this.addHistory()
+                        this.message = "";
+                    }, 5000);
                 } else {
                     this.message = result.state;
                 }
-                console.log(result)
                 document.body.classList.add("loaded")
                 document.getElementById('loading-msg').innerText = "";
             })
         },
 
+        async restart() {
+            await fetch("/api/v2/processAction/restart", {
+                method: "POST",
+                headers: {
+                    'content-type': 'application/json',
+                },
+                body: JSON.stringify({
+                    deployment: this.selectedRepo.name,
+                })
+            })
+        },
 
-        async changeLogMode(){
+        async stop() {
+            await fetch("/api/v2/processAction/stop", {
+                method: "POST",
+                headers: {
+                    'content-type': 'application/json',
+                },
+                body: JSON.stringify({
+                    deployment: this.selectedRepo.name,
+                })
+            })
+        },
+
+        async deleteDeployment() {
+            if (!confirm("\nAre you sure you want to delete '" + this.selectedRepo.name + "'? \n\n*not recoverable*")) return;
+            await fetch("/api/v2/processAction/delete", {
+                method: "POST",
+                headers: {
+                    'content-type': 'application/json',
+                },
+                body: JSON.stringify({
+                    deployment: this.selectedRepo.name,
+                })
+            })
+            localStorage.clear();
+            location.reload();
+        },
+
+        getVersion() {
+            if (this.selectedDeployment.length == 0) return;
+            fetch("/api/v2/getDeploymentVersion/" + this.selectedDeployment).then(async response => {
+                const result = await response.json();
+                if (result["state"] != undefined) {
+                    this.version = "no perm."
+                    return;
+                }
+                this.tmpRepo = result.apps[0].repo
+                this.version = result.apps[0].sha
+                this.repoLink = result.apps[0].url + "/tree/" + this.version
+                if (this.overview == 3) {
+                    this.startScript = result.apps[0].script
+                    this.startArgs = result.apps[0].args
+                    this.maxMemory = result.apps[0].max_memory_restart.split("M")[0]
+                    this.envKey = this.envValue = ""
+                    this.envs = []
+                    for (var key in result.apps[0].env) {
+                        this.envs.push([key, result.apps[0].env[key]])
+                    }
+                }
+            })
+        },
+
+        getProcess() {
+            if (this.selectedDeployment.length == 0) return;
+            fetch("/api/v2/getProcess/" + this.selectedDeployment).then(async response => {
+                const result = await response.json();
+                if(this.overview != 1)
+                    this.selectedRepo = this.tmpRepo
+
+                if (result["state"] != undefined) {
+                } else {
+                    if (result["running"] != undefined) {
+                        this.process_state = result["running"] == true ? "running" : "not_running";
+
+                        if (result["process"].monit != undefined) {
+                            this.cpu_usage = result["process"].monit.cpu;
+                            this.memory_usage = (Math.round((parseInt(result['process'].monit.memory) / 1000000) * 100) / 100).toFixed(2)
+                        }
+
+                        if (result.process.pm2_env != undefined) {
+                            this.monitor = result.process.pm2_env;
+                        }
+                    } else {
+                        this.process_state = "not_fully_deployed";
+                    }
+                }
+            })
+        },
+
+        changeDeployment() {
+            localStorage.setItem("selectedDeployment", this.selectedDeployment);
+            this.monitor = undefined
+            if (this.selectedDeployment != undefined) {
+                for (repo of this.repos) {
+                    if (repo.name == this.selectedDeployment) {
+                        this.selectedRepo = repo;
+                    }
+                }
+            }
+            this.getProcess();
+            this.getVersion();
 
         },
-        
+
 
         goBack() {
+            this.message = ""
             if (this.overview == 1) {
                 if (this.deployment == 0) {
                     this.overview = 0;
@@ -204,6 +317,24 @@ const app = new Vue({
 
         addHistory() {
             history.pushState(null, null, document.URL)
+            if (this.overview == 3 || this.overview == 2) {
+                this.getVersion();
+                if (this.selectedDeployment != undefined) {
+                    for (repo of this.repos) {
+                        if (repo.name == this.selectedDeployment) {
+                            this.selectedRepo = repo;
+                        }
+                    }
+                }
+            } else if (this.overview == 1) {
+                this.selectedRepo = undefined
+                this.startScript = this.startArgs = ""
+                this.maxMemory = 256
+            }
+        },
+
+        logout() {
+            location.pathname = "/kill"
         },
 
         help() {
@@ -214,13 +345,19 @@ const app = new Vue({
             setTimeout(() => {
                 this.message = "";
             }, delay || 5000);
+        },
+
+        cycle() {
+            setTimeout(() => {
+                this.getProcess();
+                this.cycle();
+            }, 2000);
         }
     }
 })
 
 window.onhashchange = function () {
     app.overview = 0;
-    alert("he")
 }
 
 function isNumeric(str) {
