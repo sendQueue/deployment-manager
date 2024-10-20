@@ -493,6 +493,14 @@ select, select::after, select:active, select:hover, option {
     background-color: var(--color-signal);
 }
 
+.notLatest {
+    color: rgb(255, 40, 24);
+}
+
+.latest {
+    color: aquamarine;   
+}
+
 @media only screen and (max-width: 600px) {
     :root {
         /* font-size: calc(1.1rem + .4vw); */

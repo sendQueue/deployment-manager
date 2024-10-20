@@ -10,12 +10,20 @@ window.addEventListener('popstate', () => {
     app.goBack()
 });
 
+
+
+
+
+
 const app = new Vue({
     el: "#app",
     data: {
+        focused: true,
+
         overview: 0,
         lastOverview: 0,
         title: "Overview",
+        requestLog: undefined,
 
 
         repos: [],
@@ -37,7 +45,9 @@ const app = new Vue({
         cpu_usage: -1,
         monitor: undefined,
         version: "",
+        latestVersion: "",
         repoLink: "",
+        isLatest: "notLatest",
 
         search: "",
         message: ""
@@ -45,8 +55,15 @@ const app = new Vue({
     },
     mounted: async function () {
         await this.mount();
+        this.f();
     },
     methods: {
+        f() {
+            setTimeout(() => {
+                this.focused = document.hasFocus();
+                this.f();
+            }, 800);
+        },
         async mount() {
             await fetch("/api/v2/getGithubRepos").then(async response => {
                 const r = await response.json();
@@ -73,6 +90,11 @@ const app = new Vue({
                         this.selectedDeployment = r.length > 0 ? r[0] : "";
                     }
                 }
+            })
+
+            await fetch("/api/v2/getRequestLog").then(async response => {
+                const res = await response.json();
+                this.requestLog = res;
             })
 
             if (this.selectedDeployment.length > 0) {
@@ -219,9 +241,9 @@ const app = new Vue({
             location.reload();
         },
 
-        getVersion() {
+        async getVersion() {
             if (this.selectedDeployment.length == 0) return;
-            fetch("/api/v2/getDeploymentVersion/" + this.selectedDeployment).then(async response => {
+            await fetch("/api/v2/getDeploymentVersion/" + this.selectedDeployment).then(async response => {
                 const result = await response.json();
                 if (result["state"] != undefined) {
                     this.version = "no perm."
@@ -241,6 +263,20 @@ const app = new Vue({
                     }
                 }
             })
+
+            await fetch("/api/v2/getRepoVersion/" + this.selectedDeployment).then(async response => {
+                try {
+                    const result = await response.json();
+                    if(result["object"] == undefined || result["object"]["sha"] == undefined){
+                        this.latestVersion = "no perm"
+                    }else{
+                        this.latestVersion = result["object"]["sha"];
+                    }
+                } catch (error) {
+                    this.latestVersion = "no perm."
+                }
+            })
+            this.isLatest = this.latestVersion == this.version ? "latest" : "notLatest"
         },
 
         getProcess() {
@@ -265,6 +301,8 @@ const app = new Vue({
                         }
                     } else {
                         this.process_state = "not_fully_deployed";
+                        this.cpu_usage = this.memory_usage = 0;
+                        this.monitor = undefined
                     }
                 }
             })
@@ -280,6 +318,8 @@ const app = new Vue({
                     }
                 }
             }
+            this.version = "??";
+            this.latestVersion = "??"
             this.getProcess();
             this.getVersion();
 
@@ -294,20 +334,35 @@ const app = new Vue({
                     this.title = "Overview";
                 } else if (this.deployment == 1) {
                     this.deployment = 0;
-                    this.selectedRepo = {};
                     this.title = "Click a repository to deploy"
+                    this.selectedRepo = {};
                     this.envs = []
                     this.startScript = ""
                     this.startArgs = ""
                     this.maxMemory = 256
                     this.selectedRepo = {}
+                    this.monitor = undefined
                 }
             } else if (this.overview == 2) {
                 this.overview = 0;
                 this.title = "Overview";
+                this.selectedRepo = {};
+                this.envs = []
+                this.startScript = ""
+                this.startArgs = ""
+                this.maxMemory = 256
+                this.selectedRepo = {}
+                this.monitor = undefined
             } else {
                 this.overview = 0;
                 this.title = "Overview";
+                this.selectedRepo = {};
+                this.envs = []
+                this.startScript = ""
+                this.startArgs = ""
+                this.maxMemory = 256
+                this.selectedRepo = {}
+                this.monitor = undefined
             }
         },
 
@@ -349,9 +404,11 @@ const app = new Vue({
 
         cycle() {
             setTimeout(() => {
-                this.getProcess();
+                if(this.focused){
+                    this.getProcess();
+                }
                 this.cycle();
-            }, 2000);
+            }, 4000);
         }
     }
 })

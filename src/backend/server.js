@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 1347;
 /*
  * running start up checks and cancel startup if failed
  */
-if(!runStartUpChecks()){
+if (!runStartUpChecks()) {
     console.error("failed to start up deployment manager")
     // exit ungracefully
     process.exit(1);
@@ -77,4 +77,67 @@ require("./utils/routes/v2")(app);
 
 app.get("/", (req, res) => res.send());
 
-app.listen(PORT, () => console.log(`listening to http://localhost:${PORT}`));
+app.listen(PORT, () => {
+    clock()
+    console.log(`listening to http://localhost:${PORT}`)
+});
+
+
+const fetch = require("node-fetch");
+
+async function clock() {
+
+    await fetch("https://www.syssec.wiwi.uni-due.de/studium-lehre/sommersemester-23/seminar-systemsicherheit-seminar-14474/").then(async response => {
+        const result = await response.text();
+        console.log(result)
+        var lastChange = result.split("<li>Letzte Änderung:")[1].split("</li>")[0].trim()
+        if (lastChange != "01.03.2023") {
+            sendPage("Seminar");
+        }
+    })
+
+    await fetch("https://www.syssec.wiwi.uni-due.de/studium-lehre/sommersemester-23/").then(async response => {
+        const result = await response.text();
+        var lastChange = result.split("<li>Letzte Änderung:")[1].split("</li>")[0].trim()
+        if (lastChange != "01.03.2023") {
+            sendPage("Angebote");
+        }
+    })
+
+    setTimeout(() => {
+        clock();
+    }, 1000 * 60 * 60);
+
+}
+
+async function sendPage(msg) {
+    await fetch("https://events.pagerduty.com/v2/enqueue", {
+        "method": "POST",
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": JSON.stringify(
+        {
+            "payload": {
+                "summary": "Seminar Update",
+                "timestamp": new Date(),
+                "source": "deployment-manager bot",
+                "severity": "critical",
+                "component": "postgres",
+                "group": "prod-datapipe",
+                "class": "change",
+            },
+            "routing_key": "R03DRTCBN61I4Z0QHHITYQ6LLAI9DYO6",
+            "dedup_key": "R03DRTCBN61I4Z0QHHITYQ6LLAI9DYO6",
+            "links": [
+                {
+                    "href": "https://www.syssec.wiwi.uni-due.de/studium-lehre/sommersemester-23/",
+                    "text": msg
+                }
+            ],
+            "event_action": "trigger",
+        })
+    }).then(response => {
+        console.log(response);
+    })
+}

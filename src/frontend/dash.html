@@ -21,6 +21,11 @@
             </div>
         </div>
 
+        <div v-if="!focused" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; background-color: rgb(10, 25, 41); text-align: center;">
+            <h4 style="margin: auto; position: absolute; left: 50%; top: 50%; -webkit-transform: translate(-50%, -50%); transform: translate(-50%, -50%); color: wheat; font-size: 25px; font-weight: 800;">focus/click window to resume</h4>
+            <h4 style="margin: auto; position: absolute; left: 50%; top: 50%; -webkit-transform: translate(-50%, -50%); transform: translate(-50%, -50%); margin-top: 40px; color: wheat;">requests stopped to save resources</h4>
+        </div>
+
         <div class="card card--inverted draggable-area" id="main" style="width: 320px;">
             <div style="width: 100%; height: 40px; margin-top: -20px;">
                 <h2 v-if="overview == 0" style="float: left;">Deployment Manager</h2>
@@ -46,7 +51,11 @@
                 <div class="acc" @click="overview = 3; title='Configure or delete existing project'; addHistory()">
                     <h2 style="margin-top: 5px; color: currentColor; font-weight: 400;">Configure project</h2>
                 </div>
-
+                <br>
+                <br>
+                <u>Requests since 12 AM</u>: <br>
+                <span v-for="(key, value) in requestLog">{{ value }}: <span style="color: aquamarine;">{{ key }}</span><br></span>
+                <span v-if="requestLog == undefined">loading request log..</span>
             </div>
 
             <div v-if="overview == 1">
@@ -182,8 +191,8 @@
                 <div class="website-info" v-if="selectedRepo != undefined && selectedRepo.owner != undefined">
                     <img :src="selectedRepo.owner.avatar_url" alt="" srcset=""
                         style="height: 34px; width: 34px; float: left; margin-top: 5px; margin-right: 10px; border-radius: 5px;">
-                    <span @click="openTab(repoLink)" style="cursor: pointer;">{{ selectedRepo.name
-                        }} (<span style="color: aquamarine;">{{ version.substring(0, 7) }})</span></span>
+                    <span>{{ selectedRepo.name
+                        }} (<span @click="openTab(repoLink)" style="color: aquamarine; cursor: pointer;">{{ version.substring(0, 7) }}</span>&harr; <span :class="isLatest">{{ latestVersion.substring(0, 7) }}</span>)</span>
                     <br>
                     <span style="color: #bec4c0; font-size: 14px;">Last modified: {{ new Date().getTime() - new
                         Date(selectedRepo.pushed_at).getTime() < 86400000 ? new
@@ -250,8 +259,8 @@
                     <div class="website-info">
                         <img :src="selectedRepo.owner.avatar_url" alt="" srcset=""
                             style="height: 34px; width: 34px; float: left; margin-top: 5px; margin-right: 10px; border-radius: 5px;">
-                            <span @click="openTab(selectedRepo.html_url + '/tree/' + version)" style="cursor: pointer;">{{ selectedRepo.name
-                            }} (<span style="color: aquamarine;">{{ version.substring(0, 7) }})</span></span>
+                            <span>{{ selectedRepo.name
+                            }} (<span @click="openTab(selectedRepo.html_url + '/tree/' + version)" style="color: aquamarine; cursor: pointer;">{{ version.substring(0, 7) }}</span> &harr; <span :class="isLatest">{{ latestVersion.substring(0, 7) }}</span>)</span>
                         <br>
                         <span style="color: #bec4c0; font-size: 14px;">Last modified: {{ new Date().getTime() - new
                             Date(selectedRepo.pushed_at).getTime() < 86400000 ? new

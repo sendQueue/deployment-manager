@@ -1,5 +1,6 @@
 const { execSync } = require('child_process');
-const { deploymentPath } = require('../../config');
+const { deploymentPath, nginxAccessLog } = require('../../config');
+const { isValid, insertCache } = require('../cache');
 const { decryptText } = require('../generation/generator');
 const { requireFromString } = require('../utils');
 
@@ -367,7 +368,7 @@ module.exports = {
     processAction(process_name, action) {
         if (module.exports.isDeployed(process_name)) {
             if(action == "delete"){
-                execSync("pm2 delete " + process_name)
+                execSync("pm2 delete " + process_name + " | true")
                 execSync("cd " + deploymentPath + " && rm -r DELETED_#" + process_name + " | true")
                 execSync("cd " + deploymentPath + " && mv -f " + process_name + " DELETED_#" + process_name)
             }else{
@@ -375,4 +376,62 @@ module.exports = {
             }
         }
     },
+
+    getRequestLog(){
+        if(process.env.NODE_ENV == "development"){
+            return {
+                "tiny.rip": 300,
+                "d2.vinii.de": 10
+            }
+        }
+
+        
+        const cache = isValid("nginx_request_log", "1", 120);
+
+        if (cache !== false) {
+            return cache;
+        }
+
+        var logPath = nginxAccessLog;
+        var lines = fs.readFileSync(logPath).toString().split("\n")
+        var result = {}
+
+        lines.forEach(line => {
+            var target = line.split(" ")[0];
+            var isTiny = ['go0gle.gay', 'hitmen.shop', 'i-scam.online', 'profi-coder.club', 'skid-is.fun', 'tiny.rip', "dev.tiny.rip", "v2.tiny.rip", "oder.gay"].includes(target);
+
+            if(target.length > 2){
+                if(result[target] == undefined){
+                    if(!module.exports.isNumeric(target.substring(0, 1)) && !["test.getproxylist.com", "www.giswd.com", "ip-api.com", "deploy.vinii.de"].includes(target)){
+
+                        if(isTiny){
+                            if(result['tiny.rip'] == undefined)
+                                result['tiny.rip'] = 3
+                        }else{
+                            result[target] = 1;
+                        }
+
+                    }
+                } else {
+
+                    if(isTiny){
+                        result['tiny.rip'] = result['tiny.rip'] + 3
+                    } else {
+                        result[target] = result[target] + 1
+                    }
+
+                }
+            }
+        })
+        
+        insertCache("nginx_request_log", "1", result);
+
+        return result;
+    },
+
+    isNumeric(str) {
+        if (typeof str != "string") return false;
+    
+        return !isNaN(str) && !isNaN(parseFloat(str));
+    }
 }

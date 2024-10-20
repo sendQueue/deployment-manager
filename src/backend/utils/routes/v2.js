@@ -1,5 +1,5 @@
 const { comparePassword, decryptText, encryptText } = require("../generation/generator");
-const { writeEcosystem, cloneRepository, unzipRepository, isDeployed, getDeployments, getEcosystem, getProcess, getProcessLog, processAction } = require("../hardware/bridge");
+const { writeEcosystem, cloneRepository, unzipRepository, isDeployed, getDeployments, getEcosystem, getProcess, getProcessLog, processAction, getRequestLog } = require("../hardware/bridge");
 const { getGithubRepos, getGithubRepo } = require("../network/g_helper");
 const { getUserByName, getUserByUUID, insertAction } = require("../sql");
 const { setState, setSession } = require("../utils");
@@ -175,6 +175,17 @@ module.exports = function (app) {
     })
 
 
+    app.get("/api/v2/getRequestLog", async (req, res) => {
+        const user = req.session.user;
+
+        if (!user || user.uuid.length < 1) {
+            setState(res, "invalid session, reload the page");
+            return;
+        }
+
+        res.json(getRequestLog())
+    })
+
     app.get("/api/v2/getDeploymentVersion/:deployment", async (req, res) => {
         const user = req.session.user;
 
@@ -194,6 +205,29 @@ module.exports = function (app) {
             delete ecosystem.apps[0].env
         }
         res.json(ecosystem)
+    })
+
+    app.get("/api/v2/getRepoVersion/:deployment", async (req, res) => {
+        const user = req.session.user;
+
+        if (!user || user.uuid.length < 1 || user.denied.includes(req.body.deployment)) {
+            setState(res, "invalid session, reload the page");
+            return;
+        }
+
+        await getGithubRepos(user, async repos => {
+            var l = repos.filter(r => r.name == req.params.deployment);
+            if(l.length == 0){
+                res.json();
+                return;
+            }
+
+            await getGithubRepo(user, l[0], result => {
+                res.json(result);
+            })
+        })
+
+
     })
 
 

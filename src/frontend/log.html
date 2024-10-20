@@ -55,7 +55,7 @@
 <body>
     <div style="width: 100%; height: calc(100% - 50px); overflow: hidden;" id="app">
         <pre class="log-field" id="log-field">
-            <div v-for="l in log" style="float: left; width: 97%; margin-left: 2px; user-select: text;"><span style="font-size: 13px; color: rgba(144, 202, 249, 0.815);"> {{ l[0].length > 1 ? window.innerWidth < 1000 ? new Date(l[0]).toLocaleString().split(",")[1] : new Date(l[0]).toLocaleString() : "" }}</span><span style="font-size: 12px; color: aliceblue;">{{ l[1] }}</span></div>
+            <div v-for="l in log" style="float: left; width: 97%; margin-left: 2px;"><span style="font-size: 13px; color: rgba(144, 202, 249, 0.815);"> {{ l[0].length > 1 ? window.innerWidth < 1000 ? new Date(l[0]).toLocaleString().split(",")[1] : new Date(l[0]).toLocaleString() : "" }}</span><span style="font-size: 12px; color: aliceblue;">{{ l[1] }}</span></div>
         </pre>
 
     </div>
